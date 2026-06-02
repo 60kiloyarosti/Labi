@@ -31,6 +31,7 @@
             laba1 = new Button();
             laba2 = new Button();
             laba3 = new Button();
+            laba4 = new Button();
             SuspendLayout();
             // 
             // laba1
@@ -66,11 +67,23 @@
             laba3.UseVisualStyleBackColor = true;
             laba3.Click += laba3_Click;
             // 
+            // laba4
+            // 
+            laba4.Font = new Font("Segoe UI", 18F, FontStyle.Bold, GraphicsUnit.Point, 204);
+            laba4.Location = new Point(297, 64);
+            laba4.Name = "laba4";
+            laba4.Size = new Size(216, 90);
+            laba4.TabIndex = 3;
+            laba4.Text = "Лаба4";
+            laba4.UseVisualStyleBackColor = true;
+            laba4.Click += laba4_Click;
+            // 
             // MainMenu
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(662, 573);
+            Controls.Add(laba4);
             Controls.Add(laba3);
             Controls.Add(laba2);
             Controls.Add(laba1);
@@ -84,5 +97,6 @@
         private Button laba1;
         private Button laba2;
         private Button laba3;
+        private Button laba4;
     }
 }
