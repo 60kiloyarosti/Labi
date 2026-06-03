@@ -108,6 +108,7 @@ namespace finction.Лаба3
                 x0 = x;
                 h0 = h;
             }
+
         }
 
         private double GetF(double x)
