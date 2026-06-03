@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using finction.Лаба3;
 using finction.Лаба4;
+using finction.Лаба5;
 
 namespace finction
 {
@@ -41,6 +42,12 @@ namespace finction
         {
             Laba4 laba4 = new Laba4();
             laba4.Show();
+        }
+
+        private void laba5_Click(object sender, EventArgs e)
+        {
+            Laba5 laba5 = new Laba5();
+            laba5.Show();
         }
     }
 }

@@ -30,7 +30,7 @@ namespace finction
         {
             string debugInfo = "";
             debugInfo += "Приближенное значение корня только верными значащими цифрами в узком смысле\n\n";
-            debugInfo += $"Исходные значения: {x} +- {pogresh.ToString("F8")}\n";
+            debugInfo += $"Исходные значения: {x} +- {pogresh.ToString("F10")}\n";
             Console.WriteLine();
             while (true)
             {
@@ -61,13 +61,13 @@ namespace finction
                 x1 = Math.Round(x1, n - IndexZap);
                 deltaOkr = Math.Abs(x - x1);
                 pogresh1 = deltaOkr + pogresh;
-                debugInfo += $"{x1} +-{pogresh1.ToString("F8")}\n";
+                debugInfo += $"{x1} +-{pogresh1.ToString("F10")}\n";
                 x = x1;
                 pogresh = pogresh1;
                 n1 = n;
             }
             debugInfo += "\n";
-            debugInfo += $"Итоговый ответ: {x} +- {pogresh.ToString("F8")}";
+            debugInfo += $"Итоговый ответ: {x} +- {pogresh.ToString("F10")}";
             MessageBox.Show(debugInfo);
             ResultX = x;
             ResultError = pogresh;
