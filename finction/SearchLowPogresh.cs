@@ -18,8 +18,9 @@ namespace finction
         private double deltaOkr = 0;
         private int counter = 0;
         private bool hasMinus = false;
-        public double ResultX { get; private set; }
-        public double ResultError { get; private set; }
+        public double ResultX { get;  set; }
+        public double ResultError { get; set; }
+        public string debugInfo = "";
         public SearchLowPogresh(double x, double pogresh)
         {
             this.x = x;
@@ -28,7 +29,7 @@ namespace finction
 
         public void Search()
         {
-            string debugInfo = "";
+            
             debugInfo += "Приближенное значение корня только верными значащими цифрами в узком смысле\n\n";
             debugInfo += $"Исходные значения: {x} +- {pogresh.ToString("F10")}\n";
             Console.WriteLine();

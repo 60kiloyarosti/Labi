@@ -32,7 +32,6 @@
             label1 = new Label();
             button1 = new Button();
             dataGridView1 = new DataGridView();
-            buttonDrawTable = new Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             SuspendLayout();
             // 
@@ -67,26 +66,16 @@
             // dataGridView1
             // 
             dataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView1.Location = new Point(969, 12);
+            dataGridView1.Location = new Point(969, 28);
             dataGridView1.Name = "dataGridView1";
-            dataGridView1.Size = new Size(712, 589);
+            dataGridView1.Size = new Size(712, 563);
             dataGridView1.TabIndex = 3;
-            // 
-            // buttonDrawTable
-            // 
-            buttonDrawTable.Location = new Point(762, 81);
-            buttonDrawTable.Name = "buttonDrawTable";
-            buttonDrawTable.Size = new Size(189, 27);
-            buttonDrawTable.TabIndex = 4;
-            buttonDrawTable.Text = "Отрисовать таблицу";
-            buttonDrawTable.UseVisualStyleBackColor = true;
             // 
             // Laba6
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1693, 613);
-            Controls.Add(buttonDrawTable);
+            ClientSize = new Size(1689, 603);
             Controls.Add(dataGridView1);
             Controls.Add(button1);
             Controls.Add(label1);
@@ -104,6 +93,5 @@
         private Label label1;
         private Button button1;
         private DataGridView dataGridView1;
-        private Button buttonDrawTable;
     }
 }
