@@ -12,6 +12,7 @@ using finction.Лаба3;
 using finction.Лаба4;
 using finction.Лаба5;
 using finction.Лаба6;
+using finction.Лаба7;
 
 namespace finction
 {
@@ -62,6 +63,12 @@ namespace finction
         {
             Laba11 laba11 = new Laba11();
             laba11.Show();
+        }
+
+        private void laba7_Click(object sender, EventArgs e)
+        {
+            Laba7 laba7 = new Laba7();
+            laba7.Show();
         }
     }
 }
