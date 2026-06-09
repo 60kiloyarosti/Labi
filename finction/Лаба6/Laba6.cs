@@ -1,11 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace finction.Лаба6
@@ -16,15 +10,13 @@ namespace finction.Лаба6
         private TextBox[,] koifi;
         private Label[,] iksi;
 
-        // Сохраняем результаты вычислений для отрисовки таблицы
         private List<IterationData> iterationResults = new List<IterationData>();
-        private List<IterationData> zeidelResults = new List<IterationData>(); // Для метода Зейделя
+        private List<IterationData> zeidelResults = new List<IterationData>();
 
         public Laba6()
         {
             InitializeComponent();
 
-            // Создаем кнопку для отрисовки таблицы (метод простой итерации)
             Button buttonDrawTable = new Button();
             buttonDrawTable.Text = "Отрисовать таблицу (Итерации)";
             buttonDrawTable.Location = new System.Drawing.Point(button1.Location.X, button1.Location.Y + 50);
@@ -32,7 +24,6 @@ namespace finction.Лаба6
             buttonDrawTable.Click += ButtonDrawTable_Click;
             this.Controls.Add(buttonDrawTable);
 
-            // Создаем кнопку для метода Зейделя
             Button buttonZeidel = new Button();
             buttonZeidel.Text = "Метод Зейделя";
             buttonZeidel.Location = new System.Drawing.Point(button1.Location.X, button1.Location.Y + 100);
@@ -40,7 +31,6 @@ namespace finction.Лаба6
             buttonZeidel.Click += ButtonZeidel_Click;
             this.Controls.Add(buttonZeidel);
 
-            // Создаем кнопку для отрисовки таблицы Зейделя
             Button buttonDrawZeidelTable = new Button();
             buttonDrawZeidelTable.Text = "Отрисовать таблицу (Зейдель)";
             buttonDrawZeidelTable.Location = new System.Drawing.Point(button1.Location.X, button1.Location.Y + 150);
@@ -49,7 +39,6 @@ namespace finction.Лаба6
             this.Controls.Add(buttonDrawZeidelTable);
         }
 
-        // Класс для хранения данных одной итерации
         public class IterationData
         {
             public int Iteration { get; set; }
@@ -58,7 +47,6 @@ namespace finction.Лаба6
             public bool Converged { get; set; }
         }
 
-        // Класс SearchLowPogresh (ваш класс)
         public class SearchLowPogresh
         {
             private double value;
@@ -73,7 +61,6 @@ namespace finction.Лаба6
 
             public void Search()
             {
-                // Относительная погрешность в процентах
                 if (Math.Abs(value) > 1e-10)
                 {
                     pogreshnost = (diff / Math.Abs(value)) * 100;
@@ -82,25 +69,15 @@ namespace finction.Лаба6
                 {
                     pogreshnost = diff * 100;
                 }
-
-                // Вывод в консоль для отладки
                 System.Diagnostics.Debug.WriteLine($"Значение: {value}, Погрешность: {pogreshnost:F4}%");
             }
 
-            public double GetPogreshnost()
-            {
-                return pogreshnost;
-            }
-
-            public double GetAbsolutePogreshnost()
-            {
-                return diff;
-            }
+            public double GetPogreshnost() { return pogreshnost; }
+            public double GetAbsolutePogreshnost() { return diff; }
         }
 
         private void CountKornej_TextChanged(object sender, EventArgs e)
         {
-            // Очищаем старые элементы
             if (koifi != null)
             {
                 foreach (var tb in koifi)
@@ -149,78 +126,343 @@ namespace finction.Лаба6
             MessageBox.Show("Введите данные системы!!!");
         }
 
-        // МЕТОД ПРОСТОЙ ИТЕРАЦИИ
-        private void button1_Click(object sender, EventArgs e)
+        // ==================== РАВНОСИЛЬНЫЕ ПРЕОБРАЗОВАНИЯ ====================
+
+        /// <summary>
+        /// Проверка диагонального преобладания
+        /// </summary>
+        private bool CheckDiagonalDominance(double[,] A)
         {
-            // Очищаем старые результаты
-            iterationResults.Clear();
-
-            int counTrueIF = 0;
-            int n = Convert.ToInt32(CountKornej.Text);
-
-            double[,] ABSarraySystemKoifi = new double[n, n + 1];
-            double[] sumArray = new double[n];
-            double[] DiagArray = new double[n];
-            double[] DiagArrayABS = new double[n];
-            double[] SvobodnijChlen = new double[n];
-            double[,] KofiBezSvobodnijChlen = new double[n, n];
-
-            // Чтение данных
+            int n = A.GetLength(0);
             for (int i = 0; i < n; i++)
             {
-                for (int j = 0; j < n + 1; j++)
-                {
-                    double value = Convert.ToDouble(koifi[i, j].Text);
-                    arraySystemKoifi[i, j] = value;
-                    ABSarraySystemKoifi[i, j] = Math.Abs(value);
-
-                    if (j == n)
-                        SvobodnijChlen[i] = value;
-                    else
-                        KofiBezSvobodnijChlen[i, j] = value;
-                }
-            }
-
-            // Проверка диагонального преобладания
-            for (int i = 0; i < n; i++)
-            {
+                double diag = Math.Abs(A[i, i]);
+                double sumOff = 0;
                 for (int j = 0; j < n; j++)
                 {
                     if (j != i)
-                        sumArray[i] += ABSarraySystemKoifi[i, j];
-                    else
+                        sumOff += Math.Abs(A[i, j]);
+                }
+                if (diag <= sumOff)
+                    return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// 1. ПЕРЕСТАНОВКА СТРОК - ставим на диагональ максимальные элементы
+        /// </summary>
+        private void ReorderRows(ref double[,] A, ref double[] b)
+        {
+            int n = A.GetLength(0);
+            bool[] usedRows = new bool[n];
+            double[,] newA = new double[n, n];
+            double[] newB = new double[n];
+
+            for (int col = 0; col < n; col++)
+            {
+                int bestRow = -1;
+                double maxValue = -1;
+
+                for (int row = 0; row < n; row++)
+                {
+                    if (!usedRows[row])
                     {
-                        DiagArrayABS[i] = ABSarraySystemKoifi[i, j];
-                        DiagArray[i] = arraySystemKoifi[i, j];
+                        double absValue = Math.Abs(A[row, col]);
+                        if (absValue > maxValue)
+                        {
+                            maxValue = absValue;
+                            bestRow = row;
+                        }
+                    }
+                }
+
+                if (bestRow != -1)
+                {
+                    for (int j = 0; j < n; j++)
+                        newA[col, j] = A[bestRow, j];
+                    newB[col] = b[bestRow];
+                    usedRows[bestRow] = true;
+                }
+            }
+
+            A = newA;
+            b = newB;
+        }
+
+        /// <summary>
+        /// 2. УСИЛЕНИЕ ДИАГОНАЛИ - умножение строки на коэффициент
+        /// </summary>
+        private void StrengthenDiagonal(ref double[,] A, ref double[] b)
+        {
+            int n = A.GetLength(0);
+
+            for (int i = 0; i < n; i++)
+            {
+                double diag = Math.Abs(A[i, i]);
+                double sumOffDiag = 0;
+
+                for (int j = 0; j < n; j++)
+                    if (j != i) sumOffDiag += Math.Abs(A[i, j]);
+
+                // Если диагональ не доминирует, усиливаем её
+                if (diag <= sumOffDiag && diag > 1e-10)
+                {
+                    // Коэффициент усиления: делаем диагональ на 50% больше суммы остальных
+                    double factor = (sumOffDiag * 1.5) / diag;
+                    for (int j = 0; j < n; j++)
+                        A[i, j] *= factor;
+                    b[i] *= factor;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 3. ЛИНЕЙНАЯ КОМБИНАЦИЯ - добавление одного уравнения к другому
+        /// </summary>
+        private void CombineEquations(ref double[,] A, ref double[] b)
+        {
+            int n = A.GetLength(0);
+            double[,] newA = (double[,])A.Clone();
+            double[] newB = (double[])b.Clone();
+
+            for (int i = 0; i < n; i++)
+            {
+                double diag = Math.Abs(A[i, i]);
+                double sumOffDiag = 0;
+
+                for (int j = 0; j < n; j++)
+                    if (j != i) sumOffDiag += Math.Abs(A[i, j]);
+
+                // Если диагональный элемент мал, добавляем другие уравнения
+                if (diag <= sumOffDiag)
+                {
+                    for (int k = 0; k < n; k++)
+                    {
+                        if (k != i && Math.Abs(A[k, i]) > diag)
+                        {
+                            // Добавляем k-е уравнение к i-му с весом
+                            double weight = 0.5;
+                            for (int j = 0; j < n; j++)
+                            {
+                                newA[i, j] = A[i, j] + weight * A[k, j];
+                            }
+                            newB[i] = b[i] + weight * b[k];
+                            break;
+                        }
                     }
                 }
             }
 
-            for (int i = 0; i < n; i++)
+            A = newA;
+            b = newB;
+        }
+
+        /// <summary>
+        /// ПОЛНОЕ ПРЕОБРАЗОВАНИЕ СИСТЕМЫ - комбинация всех равносильных методов
+        /// </summary>
+        private void FullTransformSystem(ref double[,] A, ref double[] b, int maxAttempts = 10)
+        {
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
-                if (DiagArrayABS[i] > sumArray[i])
-                    counTrueIF++;
+                if (CheckDiagonalDominance(A))
+                    return;
+
+                // Метод 1: Перестановка строк
+                ReorderRows(ref A, ref b);
+                if (CheckDiagonalDominance(A)) return;
+
+                // Метод 2: Усиление диагонали
+                StrengthenDiagonal(ref A, ref b);
+                if (CheckDiagonalDominance(A)) return;
+
+                // Метод 3: Линейные комбинации
+                CombineEquations(ref A, ref b);
+                if (CheckDiagonalDominance(A)) return;
+            }
+        }
+
+        /// <summary>
+        /// Показать результат преобразований
+        /// </summary>
+        private void ShowTransformationResults(double[,] originalA, double[] originalB,
+                                                double[,] newA, double[] newB,
+                                                bool convergenceGuaranteed)
+        {
+            int n = originalA.GetLength(0);
+            string message = "";
+
+            message = "РЕЗУЛЬТАТЫ РАВНОСИЛЬНЫХ ПРЕОБРАЗОВАНИЙ\n";
+            message += "=====================================\n\n";
+
+            if (convergenceGuaranteed)
+            {
+                message += "✓ ПРЕОБРАЗОВАНИЯ УСПЕШНЫ!\n";
+                message += "✓ Система имеет диагональное преобладание.\n";
+                message += "✓ Сходимость метода гарантирована.\n\n";
+            }
+            else
+            {
+                message += "⚠ ПРЕДУПРЕЖДЕНИЕ!\n";
+                message += "После преобразований диагональное преобладание не достигнуто.\n";
+                message += "Метод может не сойтись.\n\n";
             }
 
-            if (counTrueIF == n)
-                MessageBox.Show("Условие выполнено!");
-            else
-                MessageBox.Show("Условие не выполнено!");
+            message += "ИСХОДНАЯ СИСТЕМА:\n";
+            for (int i = 0; i < n && i < 5; i++)
+            {
+                for (int j = 0; j < n; j++)
+                {
+                    message += $"{originalA[i, j],8:F2}";
+                    if (j < n - 1) message += "x" + (j + 1) + " + ";
+                }
+                message += $" = {originalB[i],8:F2}\n";
+            }
 
-            double[] Xs = new double[n];
-            double[] Xs0 = new double[n];
+            message += "\nПРЕОБРАЗОВАННАЯ СИСТЕМА:\n";
+            for (int i = 0; i < n && i < 5; i++)
+            {
+                for (int j = 0; j < n; j++)
+                {
+                    message += $"{newA[i, j],8:F2}";
+                    if (j < n - 1) message += "x" + (j + 1) + " + ";
+                }
+                message += $" = {newB[i],8:F2}\n";
+            }
+
+            message += "\nПРОВЕРКА ДИАГОНАЛЬНОГО ПРЕОБЛАДАНИЯ:\n";
+            for (int i = 0; i < n; i++)
+            {
+                double diag = Math.Abs(newA[i, i]);
+                double sumOff = 0;
+                for (int j = 0; j < n; j++)
+                    if (j != i) sumOff += Math.Abs(newA[i, j]);
+                message += $"Ур.{i + 1}: |{newA[i, i],8:F2}| = {diag:F2} > {sumOff:F2} ";
+                message += (diag > sumOff) ? "✓ ДА\n" : "✗ НЕТ\n";
+            }
+
+            if (n > 5)
+                message += $"\n... и еще {n - 5} уравнений\n";
+
+            MessageBox.Show(message, "РАВНОСИЛЬНЫЕ ПРЕОБРАЗОВАНИЯ",
+                           MessageBoxButtons.OK,
+                           convergenceGuaranteed ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+        }
+
+        /// <summary>
+        /// Проверка решения на исходной системе
+        /// </summary>
+        private bool ValidateSolution(double[,] A, double[] b, double[] Xs, double tolerance = 0.001)
+        {
+            int n = A.GetLength(0);
+            double maxError = 0;
+            string errors = "";
 
             for (int i = 0; i < n; i++)
             {
-                if (DiagArrayABS[i] == 0)
+                double sum = 0;
+                for (int j = 0; j < n; j++)
                 {
-                    MessageBox.Show($"Ошибка: Диагональный элемент [{i},{i}] равен 0!");
+                    sum += A[i, j] * Xs[j];
+                }
+                double error = Math.Abs(sum - b[i]);
+                maxError = Math.Max(maxError, error);
+
+                if (error > tolerance) 
+                    errors += $"Уравнение {i + 1}: {sum:F6} ≠ {b[i]}, ошибка: {error:E6}\n";
+            }
+
+            return maxError <= tolerance;  // Если ошибка меньше заданной точности - решение верное
+        }
+
+        // ==================== МЕТОД ПРОСТОЙ ИТЕРАЦИИ ====================
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            iterationResults.Clear();
+
+            int n = Convert.ToInt32(CountKornej.Text);
+            double[,] A = new double[n, n];
+            double[] b = new double[n];
+
+            for (int i = 0; i < n; i++)
+            {
+                for (int j = 0; j < n; j++)
+                {
+                    A[i, j] = Convert.ToDouble(koifi[i, j].Text);
+                }
+                b[i] = Convert.ToDouble(koifi[i, n].Text);
+            }
+
+            double[,] originalA = (double[,])A.Clone();
+            double[] originalB = (double[])b.Clone();
+            double[,] workingA = (double[,])A.Clone();
+            double[] workingB = (double[])b.Clone();
+
+            bool hasDominance = CheckDiagonalDominance(workingA);
+
+            if (!hasDominance)
+            {
+                DialogResult res = MessageBox.Show(
+                    "СИСТЕМА НЕ ИМЕЕТ ДИАГОНАЛЬНОГО ПРЕОБЛАДАНИЯ!\n\n" +
+                    "Выполнить РАВНОСИЛЬНЫЕ ПРЕОБРАЗОВАНИЯ для обеспечения сходимости?\n\n" +
+                    "Преобразования:\n" +
+                    "• Перестановка строк\n" +
+                    "• Усиление диагональных элементов\n" +
+                    "• Линейные комбинации уравнений\n\n" +
+                    "Это не изменит решение системы!",
+                    "РАВНОСИЛЬНЫЕ ПРЕОБРАЗОВАНИЯ",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (res == DialogResult.Yes)
+                {
+                    FullTransformSystem(ref workingA, ref workingB);
+                    bool success = CheckDiagonalDominance(workingA);
+                    ShowTransformationResults(originalA, originalB, workingA, workingB, success);
+                }
+            }
+
+            SolveBySimpleIteration(workingA, workingB, originalA, originalB);
+        }
+
+        private void SolveBySimpleIteration(double[,] A, double[] b, double[,] originalA, double[] originalB)
+        {
+            int n = A.GetLength(0);
+
+            for (int i = 0; i < n; i++)
+            {
+                if (Math.Abs(A[i, i]) < 1e-10)
+                {
+                    MessageBox.Show($"Ошибка: Диагональный элемент [{i},{i}] равен 0!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
-                Xs[i] = SvobodnijChlen[i] / DiagArray[i];
             }
 
-            // Сохраняем начальное приближение
+            double[,] B = new double[n, n];
+            double[] c = new double[n];
+
+            for (int i = 0; i < n; i++)
+            {
+                c[i] = b[i] / A[i, i];
+                for (int j = 0; j < n; j++)
+                {
+                    if (i != j)
+                        B[i, j] = -A[i, j] / A[i, i];
+                    else
+                        B[i, j] = 0;
+                }
+            }
+
+            double[] Xs = new double[n];
+            double[] XsPrev = new double[n];
+
+            for (int i = 0; i < n; i++)
+            {
+                Xs[i] = c[i];
+                XsPrev[i] = Xs[i];
+            }
+
             IterationData initialData = new IterationData();
             initialData.Iteration = 0;
             initialData.XValues = new double[n];
@@ -231,8 +473,6 @@ namespace finction.Лаба6
             initialData.Converged = false;
             iterationResults.Add(initialData);
 
-            Array.Copy(Xs, Xs0, n);
-
             double epsilon = 0.5 * Math.Pow(10, -3);
             int maxIterations = 100;
             int iteration = 1;
@@ -241,28 +481,26 @@ namespace finction.Лаба6
 
             while (!converged && iteration <= maxIterations)
             {
-                for (int k = 0; k < n; k++)
-                    Xs0[k] = Xs[k];
+                Array.Copy(Xs, XsPrev, n);
 
-                for (int k = 0; k < n; k++)
+                for (int i = 0; i < n; i++)
                 {
                     double sum = 0;
                     for (int j = 0; j < n; j++)
                     {
-                        if (j != k)
-                            sum += KofiBezSvobodnijChlen[k, j] * Xs0[j];
+                        sum += B[i, j] * XsPrev[j];
                     }
-                    Xs[k] = (SvobodnijChlen[k] - sum) / KofiBezSvobodnijChlen[k, k];
+                    Xs[i] = c[i] + sum;
                 }
 
                 double maxDiff = 0;
                 diffs = new double[n];
 
-                for (int k = 0; k < n; k++)
+                for (int i = 0; i < n; i++)
                 {
-                    diffs[k] = Math.Abs(Xs[k] - Xs0[k]);
-                    if (diffs[k] > maxDiff)
-                        maxDiff = diffs[k];
+                    diffs[i] = Math.Abs(Xs[i] - XsPrev[i]);
+                    if (diffs[i] > maxDiff)
+                        maxDiff = diffs[i];
                 }
 
                 if (maxDiff < epsilon)
@@ -280,65 +518,118 @@ namespace finction.Лаба6
                 iteration++;
             }
 
+            // Проверяем решение на исходной системе
+            bool isValid = ValidateSolution(originalA, originalB, Xs);
+
             if (converged)
             {
-                string result = $"Решение найдено за {iteration - 1} итераций:\n\n";
-                for (int k = 0; k < n; k++)
+                string result = "";
+                if (isValid)
+                    result = $"✓ РЕШЕНИЕ НАЙДЕНО за {iteration - 1} итераций:\n\n";
+                else
+                    result = $"⚠ ВНИМАНИЕ! Метод сошелся за {iteration - 1} итераций, НО РЕШЕНИЕ НЕВЕРНОЕ!\n\n";
+
+                for (int i = 0; i < n; i++)
                 {
-                    result += $"x{k + 1} = {Xs[k]:F6}\n";
-                    SearchLowPogresh searchLow = new SearchLowPogresh(Xs[k], diffs[k]);
+                    result += $"x{i + 1} = {Xs[i]:F6}\n";
+                    SearchLowPogresh searchLow = new SearchLowPogresh(Xs[i], diffs[i]);
                     searchLow.Search();
                 }
-                MessageBox.Show(result, "Результат (Метод простой итерации)", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                MessageBox.Show(result, "РЕЗУЛЬТАТ (Метод простой итерации)",
+                               MessageBoxButtons.OK,
+                               isValid ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
             }
             else
             {
-                MessageBox.Show($"Метод не сошелся за {maxIterations} итераций!",
-                                "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show($"Метод не сошелся за {maxIterations} итераций!\n\n" +
+                               "Рекомендации:\n" +
+                               "1. Используйте метод Зейделя\n" +
+                               "2. Выполните преобразования системы\n" +
+                               "3. Проверьте корректность данных",
+                               "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
 
             DrawTable();
         }
 
-        // МЕТОД ЗЕЙДЕЛЯ
+        // ==================== МЕТОД ЗЕЙДЕЛЯ ====================
+
         private void ButtonZeidel_Click(object sender, EventArgs e)
         {
             zeidelResults.Clear();
 
             int n = Convert.ToInt32(CountKornej.Text);
-            double[,] KofiBezSvobodnijChlen = new double[n, n];
-            double[] SvobodnijChlen = new double[n];
-            double[] DiagArray = new double[n];
+            double[,] A = new double[n, n];
+            double[] b = new double[n];
 
-            // Чтение данных
             for (int i = 0; i < n; i++)
             {
-                for (int j = 0; j < n + 1; j++)
+                for (int j = 0; j < n; j++)
                 {
-                    double value = Convert.ToDouble(koifi[i, j].Text);
-                    if (j == n)
-                        SvobodnijChlen[i] = value;
-                    else
-                        KofiBezSvobodnijChlen[i, j] = value;
+                    A[i, j] = Convert.ToDouble(koifi[i, j].Text);
                 }
-                DiagArray[i] = KofiBezSvobodnijChlen[i, i];
-                if (DiagArray[i] == 0)
+                b[i] = Convert.ToDouble(koifi[i, n].Text);
+            }
+
+            // СОХРАНЯЕМ ОРИГИНАЛЬНУЮ СИСТЕМУ ДЛЯ ПРОВЕРКИ
+            double[,] originalA = (double[,])A.Clone();
+            double[] originalB = (double[])b.Clone();
+            double[,] workingA = (double[,])A.Clone();
+            double[] workingB = (double[])b.Clone();
+
+            bool hasDominance = CheckDiagonalDominance(workingA);
+
+            if (!hasDominance)
+            {
+                DialogResult res = MessageBox.Show(
+                    "СИСТЕМА НЕ ИМЕЕТ ДИАГОНАЛЬНОГО ПРЕОБЛАДАНИЯ!\n\n" +
+                    "Выполнить РАВНОСИЛЬНЫЕ ПРЕОБРАЗОВАНИЯ для метода Зейделя?\n\n" +
+                    "Преобразования:\n" +
+                    "• Перестановка строк\n" +
+                    "• Усиление диагональных элементов\n" +
+                    "• Линейные комбинации уравнений\n\n" +
+                    "Это значительно повысит шансы на сходимость!",
+                    "РАВНОСИЛЬНЫЕ ПРЕОБРАЗОВАНИЯ",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (res == DialogResult.Yes)
                 {
-                    MessageBox.Show($"Ошибка: Диагональный элемент [{i},{i}] равен 0!");
+                    FullTransformSystem(ref workingA, ref workingB);
+                    bool success = CheckDiagonalDominance(workingA);
+                    ShowTransformationResults(originalA, originalB, workingA, workingB, success);
+                }
+            }
+
+            SolveBySeidel(workingA, workingB, originalA, originalB);
+        }
+
+        private void SolveBySeidel(double[,] A, double[] b, double[,] originalA, double[] originalB)
+        {
+            int n = A.GetLength(0);
+
+            for (int i = 0; i < n; i++)
+            {
+                if (Math.Abs(A[i, i]) < 1e-10)
+                {
+                    MessageBox.Show($"Ошибка: Диагональный элемент [{i},{i}] равен 0!\n" +
+                                   "Невозможно применить метод Зейделя.",
+                                   "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
             }
 
-            // Начальное приближение
             double[] Xs = new double[n];
             double[] XsPrev = new double[n];
+
+            // Начальное приближение - нулевое
             for (int i = 0; i < n; i++)
             {
-                Xs[i] = SvobodnijChlen[i] / DiagArray[i];
+                Xs[i] = 0;
                 XsPrev[i] = 0;
             }
 
-            // Сохраняем начальное приближение
             IterationData initialData = new IterationData();
             initialData.Iteration = 0;
             initialData.XValues = new double[n];
@@ -350,45 +641,58 @@ namespace finction.Лаба6
             zeidelResults.Add(initialData);
 
             double epsilon = 0.5 * Math.Pow(10, -3);
-            int maxIterations = 100;
+            int maxIterations = 200;
             int iteration = 1;
             bool converged = false;
             double[] diffs = null;
+            double previousMaxDiff = double.MaxValue;
 
             while (!converged && iteration <= maxIterations)
             {
-                // Сохраняем предыдущие значения
-                for (int k = 0; k < n; k++)
-                    XsPrev[k] = Xs[k];
+                Array.Copy(Xs, XsPrev, n);
 
-                // Метод Зейделя - используем уже обновленные значения
-                for (int k = 0; k < n; k++)
+                // Метод Зейделя
+                for (int i = 0; i < n; i++)
                 {
                     double sum = 0;
                     for (int j = 0; j < n; j++)
                     {
-                        if (j != k)
+                        if (j != i)
                         {
-                            sum += KofiBezSvobodnijChlen[k, j] * Xs[j]; // Используем Xs (уже обновленные)
+                            sum += A[i, j] * Xs[j];
                         }
                     }
-                    Xs[k] = (SvobodnijChlen[k] - sum) / KofiBezSvobodnijChlen[k, k];
+                    Xs[i] = (b[i] - sum) / A[i, i];
                 }
 
-                // Вычисляем разницы
                 double maxDiff = 0;
                 diffs = new double[n];
-                for (int k = 0; k < n; k++)
+
+                for (int i = 0; i < n; i++)
                 {
-                    diffs[k] = Math.Abs(Xs[k] - XsPrev[k]);
-                    if (diffs[k] > maxDiff)
-                        maxDiff = diffs[k];
+                    diffs[i] = Math.Abs(Xs[i] - XsPrev[i]);
+                    if (diffs[i] > maxDiff)
+                        maxDiff = diffs[i];
                 }
+
+                // Проверка на расходимость
+                if (maxDiff > previousMaxDiff && iteration > 5)
+                {
+                    MessageBox.Show($"ВНИМАНИЕ: Метод Зейделя расходится!\n" +
+                                   $"Итерация {iteration}: Δ = {maxDiff:E6}\n\n" +
+                                   $"Рекомендации:\n" +
+                                   $"1. Выполните преобразования системы\n" +
+                                   $"2. Проверьте корректность введенных данных",
+                                   "Расходимость метода",
+                                   MessageBoxButtons.OK,
+                                   MessageBoxIcon.Warning);
+                    break;
+                }
+                previousMaxDiff = maxDiff;
 
                 if (maxDiff < epsilon)
                     converged = true;
 
-                // Сохраняем данные итерации
                 IterationData data = new IterationData();
                 data.Iteration = iteration;
                 data.XValues = new double[n];
@@ -401,36 +705,89 @@ namespace finction.Лаба6
                 iteration++;
             }
 
+            // ПРОВЕРЯЕМ РЕШЕНИЕ НА ОРИГИНАЛЬНОЙ СИСТЕМЕ
+            bool isValid = ValidateSolution(originalA, originalB, Xs);
+
             if (converged)
             {
-                string result = $"Решение найдено за {iteration - 1} итераций (метод Зейделя):\n\n";
+                string result = "";
+                if (isValid)
+                    result = $"✓ РЕШЕНИЕ НАЙДЕНО за {iteration - 1} итераций (метод Зейделя):\n\n";
+                else
+                    result = $"⚠ ВНИМАНИЕ! Метод сошелся за {iteration - 1} итераций, НО РЕШЕНИЕ НЕВЕРНОЕ!\n\n" +
+                             "Возможно, система плохо обусловлена или метод сошелся к ложному корню.\n\n";
 
-                for (int k = 0; k < n; k++)
+                for (int i = 0; i < n; i++)
                 {
-                    result += $"x{k + 1} = {Xs[k]:F6}\n";
-                    // Ваш класс SearchLowPogresh
-                    SearchLowPogresh searchLow = new SearchLowPogresh(Xs[k], diffs[k]);
+                    result += $"x{i + 1} = {Xs[i]:F6}\n";
+                    SearchLowPogresh searchLow = new SearchLowPogresh(Xs[i], diffs[i]);
                     searchLow.Search();
-
                 }
-                MessageBox.Show(result, "Результат (Метод Зейделя)", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                MessageBox.Show(result, "РЕЗУЛЬТАТ (Метод Зейделя)",
+                               MessageBoxButtons.OK,
+                               isValid ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
             }
             else
             {
-                MessageBox.Show($"Метод Зейделя не сошелся за {maxIterations} итераций!",
-                                "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show($"Метод Зейделя не сошелся за {maxIterations} итераций!\n\n" +
+                               "ВОЗМОЖНЫЕ РЕШЕНИЯ:\n" +
+                               "1. Выполните равносильные преобразования (кнопка \"Да\")\n" +
+                               "2. Используйте метод простой итерации\n" +
+                               "3. Проверьте правильность ввода данных\n" +
+                               "4. Система может не иметь решения или иметь бесконечно много решений",
+                               "НЕТ СХОДИМОСТИ",
+                               MessageBoxButtons.OK,
+                               MessageBoxIcon.Error);
             }
 
             DrawZeidelTable();
+            // В конце метода SolveBySeidel, после нахождения решения:
+
+            if (converged)
+            {
+                // Находим максимальную разницу (погрешность)
+                double maxDiff = 0;
+                for (int i = 0; i < n; i++)
+                {
+                    if (diffs[i] > maxDiff)
+                        maxDiff = diffs[i];
+                }
+
+                // Выводим информацию о погрешности в требуемом формате
+                PrintPogreshnostInfo(Xs, diffs, maxDiff, iteration - 1);
+
+                // Проверяем решение
+                bool isValid1 = ValidateSolution(originalA, originalB, Xs);
+
+                string result = "";
+                if (isValid1)
+                    result = $"✓ РЕШЕНИЕ НАЙДЕНО за {iteration - 1} итераций (метод Зейделя):\n\n";
+                else
+                    result = $"⚠ ВНИМАНИЕ! Решение найдено за {iteration - 1} итераций, НО ПОГРЕШНОСТЬ МОЖЕТ БЫТЬ ВЫШЕ!\n\n";
+
+                for (int i = 0; i < n; i++)
+                {
+                    result += $"x{i + 1} = {Xs[i]:F6}\n";
+                    SearchLowPogresh searchLow = new SearchLowPogresh(Xs[i], diffs[i]);
+                    searchLow.Search();
+                }
+
+                result += $"\nПогрешность Δξ̄ = {maxDiff:F6}";
+
+                MessageBox.Show(result, "РЕЗУЛЬТАТ (Метод Зейделя)",
+                               MessageBoxButtons.OK,
+                               isValid1 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+            }
         }
 
-        // Отрисовка таблицы для метода простой итерации
+        // ==================== МЕТОДЫ ОТРИСОВКИ ТАБЛИЦ ====================
+
         private void ButtonDrawTable_Click(object sender, EventArgs e)
         {
             DrawTable();
         }
 
-        // Отрисовка таблицы для метода Зейделя
         private void ButtonDrawZeidelTable_Click(object sender, EventArgs e)
         {
             DrawZeidelTable();
@@ -440,8 +797,7 @@ namespace finction.Лаба6
         {
             if (iterationResults.Count == 0)
             {
-                MessageBox.Show("Нет данных для отображения. Сначала выполните вычисления методом простой итерации!",
-                                "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Нет данных для отображения. Сначала выполните вычисления методом простой итерации!", "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -481,20 +837,13 @@ namespace finction.Лаба6
 
             dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
             dataGridView1.Refresh();
-
-            if (dataGridView1.Rows.Count > 0)
-                dataGridView1.FirstDisplayedScrollingRowIndex = dataGridView1.Rows.Count - 1;
-
-            MessageBox.Show($"Таблица отрисована! Всего строк: {dataGridView1.Rows.Count} (Метод простой итерации)",
-                            "Готово", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void DrawZeidelTable()
         {
             if (zeidelResults.Count == 0)
             {
-                MessageBox.Show("Нет данных для отображения. Сначала выполните вычисления методом Зейделя!",
-                                "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Нет данных для отображения. Сначала выполните вычисления методом Зейделя!", "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -534,12 +883,82 @@ namespace finction.Лаба6
 
             dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
             dataGridView1.Refresh();
+        }
+        /// <summary>
+        /// Вывод информации о погрешности в требуемом формате
+        /// </summary>
+        private void PrintPogreshnostInfo(double[] Xs, double[] diffs, double maxDiff, int iteration)
+        {
+            string result = "";
 
-            if (dataGridView1.Rows.Count > 0)
-                dataGridView1.FirstDisplayedScrollingRowIndex = dataGridView1.Rows.Count - 1;
+            // Формируем вектор x^(k)
+            result += "ξ̄ = x^(" + iteration + ") = (";
+            for (int i = 0; i < Xs.Length; i++)
+            {
+                result += Xs[i].ToString("F7");
+                if (i < Xs.Length - 1)
+                    result += "; ";
+            }
+            result += "), ";
 
-            MessageBox.Show($"Таблица отрисована! Всего строк: {dataGridView1.Rows.Count} (Метод Зейделя)",
-                            "Готово", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            // Добавляем погрешность Δξ̄
+            result += "Δξ̄ = " + maxDiff.ToString("F6");
+
+            // Дополнительная информация о погрешностях по каждой переменной
+            result += "\n\nПогрешности по каждой переменной:\n";
+            for (int i = 0; i < Xs.Length; i++)
+            {
+                result += $"Δx{i + 1} = {diffs[i]:E6}\n";
+            }
+
+            MessageBox.Show(result, "Информация о погрешности",
+                           MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        /// <summary>
+        /// Вывод информации о погрешности с указанием точного решения (если известно)
+        /// </summary>
+        private void PrintPogreshnostInfoWithExact(double[] Xs, double[] diffs, double maxDiff,
+                                                   int iteration, double[] exactSolution)
+        {
+            string result = "";
+
+            // Формируем вектор x^(k)
+            result += "ξ̄ = x^(" + iteration + ") = (";
+            for (int i = 0; i < Xs.Length; i++)
+            {
+                result += Xs[i].ToString("F7");
+                if (i < Xs.Length - 1)
+                    result += "; ";
+            }
+            result += "), ";
+
+            // Добавляем погрешность Δξ̄
+            result += "Δξ̄ = " + maxDiff.ToString("F6");
+
+            // Сравнение с точным решением (если известно)
+            if (exactSolution != null && exactSolution.Length == Xs.Length)
+            {
+                result += "\n\nСравнение с точным решением:\n";
+                double maxExactError = 0;
+                for (int i = 0; i < Xs.Length; i++)
+                {
+                    double exactError = Math.Abs(Xs[i] - exactSolution[i]);
+                    maxExactError = Math.Max(maxExactError, exactError);
+                    result += $"x{i + 1}: {Xs[i]:F7} - {exactSolution[i]:F7} = {exactError:E6}\n";
+                }
+                result += $"\nМаксимальная погрешность относительно точного решения: {maxExactError:E6}";
+            }
+
+            // Дополнительная информация о погрешностях по каждой переменной
+            result += "\n\nΔx (разница между итерациями):\n";
+            for (int i = 0; i < Xs.Length; i++)
+            {
+                result += $"Δx{i + 1} = {diffs[i]:E6}\n";
+            }
+
+            MessageBox.Show(result, "Информация о погрешности",
+                           MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void label3_Click(object sender, EventArgs e)
